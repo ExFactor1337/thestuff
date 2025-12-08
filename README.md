@@ -10,7 +10,7 @@ This template is packed with utilities and configurations to streamline your pip
 
 | Feature | Description | Benefit |
 | :--- | :--- | :--- |
-| **Grovvy Config Runner** | Uses **Nextflow Domain Specific Language (DSL)** to parse configuration files. It **validates inputs**, ensuring they exist and all parameters fall within expected ranges and formats. | **Guaranteed execution** reliability and immediate feedback on configuration errors. |
+| **Groovy Config Runner** | Uses **Nextflow Domain Specific Language (DSL)** to parse configuration files. It **validates inputs**, ensuring they exist and all parameters fall within expected ranges and formats. | **Guaranteed execution** reliability and immediate feedback on configuration errors. |
 | **🕵️ Auditor Log** | **Automatic log creation** for every pipeline run. Logs include: input parameters, executed command, pipeline version, user, timestamp, and a complete list of generated output files. | **Full transparency** and reproducibility for every single pipeline execution. |
 | **🐳 GitHub Actions Matrix Docker Build** | The `docker-build.yaml` automatically builds and pushes images for all Dockerfiles in the `containers/` directory. Uses a **matrix build** to handle multiple images. | **Zero-effort container management** with automatic SHA-unique IDs and `latest` tags for every image. |
 | **📦 Nextflow Runner Dockerfile** | A dedicated Dockerfile with all instructions and dependencies required to build the core Nextflow runner image, enabling **containerized execution** of all pipelines. | **Consistent, reproducible environment** for running pipelines across different systems. |
