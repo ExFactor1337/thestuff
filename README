@@ -1,21 +1,20 @@
-#Docker cli install instruction
-# Install required packages
-sudo apt-get update
-sudo apt-get install ca-certificates curl gnupg
+## ✨ The Stuff: The Ultimate Nextflow Pipeline Template Repository ✨
 
-# Add Docker's official GPG key
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
+A robust, efficient, and professional template designed to power all your **Nextflow-orchestrated pipelines**. "The Stuff" provides the foundational components—from smart configuration parsing to automatic auditing and seamless containerization—to ensure your pipelines run smoothly every time.
 
-# Add the Docker repository with the correct Ubuntu code name
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  jammy stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+---
 
-# Update the package index
-sudo apt-get update
+## 🚀 Key Features
 
-# Install Docker
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 
+This template is packed with utilities and configurations to streamline your pipeline development:
+
+| Feature | Description | Benefit |
+| :--- | :--- | :--- |
+| **Grovvy Config Runner** | Uses **Nextflow Domain Specific Language (DSL)** to parse configuration files. It **validates inputs**, ensuring they exist and all parameters fall within expected ranges and formats. | **Guaranteed execution** reliability and immediate feedback on configuration errors. |
+| **🕵️ Auditor Log** | **Automatic log creation** for every pipeline run. Logs include: input parameters, executed command, pipeline version, user, timestamp, and a complete list of generated output files. | **Full transparency** and reproducibility for every single pipeline execution. |
+| **🐳 GitHub Actions Matrix Docker Build** | The `docker-build.yaml` automatically builds and pushes images for all Dockerfiles in the `containers/` directory. Uses a **matrix build** to handle multiple images. | **Zero-effort container management** with automatic SHA-unique IDs and `latest` tags for every image. |
+| **📦 Nextflow Runner Dockerfile** | A dedicated Dockerfile with all instructions and dependencies required to build the core Nextflow runner image, enabling **containerized execution** of all pipelines. | **Consistent, reproducible environment** for running pipelines across different systems. |
+| **🛠️ Groovy Helper Library** | A growing library of reusable Groovy scripts designed for easy and rapid construction of complex Nextflow pipelines. | **Accelerated development** and increased code quality/consistency. |
+| **🎨 Banner Art Utilities** | Simple utilities to add **ASCII flair** and visually appealing banners to your project output or logs. | **Professional presentation** and engaging user experience. |
+
+---
