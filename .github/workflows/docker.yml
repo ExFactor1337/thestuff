@@ -39,7 +39,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository }}_${{ matrix.dockerfile_name }}
           tags: |
             type=sha,format=short
             type=raw,value=latest
@@ -51,6 +51,5 @@ jobs:
           push: true
           # matrix runs parallelize docker image builds - very cool
           file: ./containers/${{ matrix.dockerfile_name }}
-          tags: |
-            ghcr.io/${{ github.repository }}_${{ matrix.dockerfile_name }}:${{ github.sha::7 }}
-            ghcr.io/${{ github.repository }}_${{ matrix.dockerfile_name }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
+
