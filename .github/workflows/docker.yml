@@ -52,5 +52,5 @@ jobs:
           # matrix runs parallelize docker image builds - very cool
           file: ./containers/${{ matrix.dockerfile_name }}
           tags: |
-            ghcr.io/${{ github.repository }}_${{ matrix.dockerfile_name }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}_${{ matrix.dockerfile_name }}:${{ github.sha::7 }}
             ghcr.io/${{ github.repository }}_${{ matrix.dockerfile_name }}:latest
