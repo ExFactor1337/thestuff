@@ -1,0 +1,19 @@
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update package lists and install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        ca-certificates \
+        file \
+        tree  \
+        vim && \
+    rm -rf /var/lib/apt/lists/*   # Clean up to reduce image size
+
+# For Python Images
+# COPY requirements.txt .
+# RUN pip install --no-cache-dir -r requirements.txt
+
+# COPY <REPO DIR/FILE> <CONTAINER LOCATION>
+# WORKDIR <WORKING DATA LOCATION>
