@@ -5,7 +5,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
+        bash \
         ca-certificates \
+        openjdk-11-jre \
         file \
         tree  \
         vim && \
@@ -17,3 +19,10 @@ RUN apt-get update && \
 
 # COPY <REPO DIR/FILE> <CONTAINER LOCATION>
 # WORKDIR <WORKING DATA LOCATION>
+
+# Install Nextflow (version before DSL2 strict syntax existed - gross)
+RUN curl -s https://get.nextflow.io | bash && \
+    mv nextflow /usr/local/bin/ && \
+    nextflow self-update 24.10.0
+
+
