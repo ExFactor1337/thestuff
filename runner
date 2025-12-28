@@ -1,4 +1,5 @@
 import ParamsChecker
+import Auditor
 import groovy.util.ConfigSlurper
 
 // --- 1. Load Parameter Definitions ---
@@ -32,7 +33,6 @@ def checker = new ParamsChecker(definitions)
 if (userParams.containsKey('help')) {
     // If the user provided --help, print the guide and exit cleanly.
     checker.printHelp(banner_art) 
-    checker.printHelp()
     System.exit(0)
 }
 
@@ -55,7 +55,7 @@ try {
 }
 
 // --- 5. Build Nextflow Command ---
-def nfCmd = "nextflow run theworks.nf"
+def nfCmd = "nextflow run thestuff.nf"
 
 // Use the validated parameters (vparams) to build the command string.
 vparams.each { k, v -> 

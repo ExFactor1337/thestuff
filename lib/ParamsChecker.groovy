@@ -123,7 +123,16 @@ class ParamsChecker {
     }
     
     void printHelp(String asciiArtFilePath = null) {
-        Auditor.printAsciiBanner(asciiArtFilePath)
+        if (asciiArtFilePath) {
+            def f = new File(asciiArtFilePath)
+            if (f.exists()) {
+                println()
+                println f.text
+                println()
+            } else {
+                println "\nWarning: ASCII art file not found at ${asciiArtFilePath}\n"
+            }
+        }
         def output = new StringBuilder()
         output.append("\n======================================================\n")
         output.append("REQUIRED and OPTIONAL PARAMETERS\n")

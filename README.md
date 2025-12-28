@@ -18,3 +18,26 @@ This template is packed with utilities and configurations to streamline your pip
 | **🎨 Banner Art Utilities** | Simple utilities to add **ASCII flair** and visually appealing banners to your project output or logs. | **Professional presentation** and engaging user experience. |
 
 ---
+
+Auditor Log Utility
+- Logs the 'who/what/when/where/how' of each pipeline run in a timestamped auditor logfile. 
+    - Logs username, time of execution, important directories, configurations, and user inputs
+    - Logs files created in out_dir location by pipeline
+    - Includes run summary based on 'workflow' object, 'workflow.manifest' object created in nextflow.config, and vparams object created by ParamsChecker. This allows developer to consolidate important information about the pipeline build, pipeline run, and user inputs.
+
+Parameter Checker Utility
+- Allows the user to provide parameter definitions to validate command line arguments
+- How it works:
+    - Each pipeline has a base.config that defines the pipeline's parameters
+    - Each parameter has a 'definition' that looks like this:
+    definitions {
+        parameter_1 {
+            default_value = null
+            type = <supported: "integer", "float", "path", "flag", "string">
+            description = "Describe your parameter here"
+            required = <supported: true, false>
+        }
+    }
+    - Each parameter definition has its default value replaced if 
+    - Based on definitions
+        - if 'required' is true, 

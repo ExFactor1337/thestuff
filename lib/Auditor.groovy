@@ -30,7 +30,7 @@ class Auditor {
         println content
     }
     
-    private void printAsciiBanner(String asciiArtFilePath) {
+    public void printAsciiBanner(String asciiArtFilePath) {
         if (Files.exists(Paths.get(asciiArtFilePath))) {
             def asciiArt = Files.readAllBytes(Paths.get(asciiArtFilePath))
             this.writeAndPrint("\n" + new String(asciiArt) + "\n")
