@@ -5,9 +5,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
+        wget \
+        openjdk-17-jdk \
         bash \
+        unzip \
+        zip \
         ca-certificates \
-        openjdk-11-jre \
         file \
         tree  \
         vim && \
@@ -21,8 +24,12 @@ RUN apt-get update && \
 # WORKDIR <WORKING DATA LOCATION>
 
 # Install Nextflow (version before DSL2 strict syntax existed - gross)
-RUN curl -s https://get.nextflow.io | bash && \
-    mv nextflow /usr/local/bin/ && \
-    nextflow self-update 24.10.0
+RUN wget https://github.com/nextflow-io/nextflow/releases/download/v24.10.0/nextflow-24.10.0-dist && \
+    mv nextflow-24.10.0-dist /usr/local/bin/nextflow && \
+    chmod +x /usr/local/bin/nextflow
 
+ENV NXF_HOME=/opt/nextflow 
+
+RUN mkdir -p /opt/nextflow && \ 
+    chmod -R a+rwx /opt/nextflow
 
