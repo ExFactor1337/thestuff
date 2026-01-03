@@ -2,6 +2,8 @@ import ParamsChecker
 import Auditor
 import groovy.util.ConfigSlurper
 
+Logger.enabled = false // Disable logging for cleaner output
+
 // --- 1. Load Parameter Definitions ---
 def configFile = new File("configs/base.config")
 def config = new ConfigSlurper().parse(configFile.toURL())

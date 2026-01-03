@@ -1,6 +1,14 @@
 import Auditor
 import java.nio.file.Files
 
+
+class Logger { 
+    static boolean enabled = true 
+    static void log(msg) { 
+        if (enabled) println msg 
+    } 
+}
+
 class ParamsChecker {
     private final Map definitions
     
@@ -8,27 +16,79 @@ class ParamsChecker {
     //@param definitions A map defining the expected parameters and their constraints.
     ParamsChecker(Map definitions) {
         this.definitions = definitions
+        validateDefinitionStructure()
     }
 
-    //Validates and processes user-supplied parameters against the stored definitions.
-    //@param userParams A map of parameters supplied by the user (e.g., from CLI).
-    //@return A map containing only the validated and converted parameters.
-    //@throws RuntimeException if any validation or type check fails.
-    Map validate(Map userParams) {
-        def validatedParams = [:]
-        def workingDefinitions = [:]
+    /* This function will enforce the following rules:
+        1. The Definitions object must be a Map, whose keys are Parameters and whose values are a Definition Set.
+        2. A valid Definition Set has the following criteria
+            a. A Definition Set is itself a Map.
+            b. Each Definition Set must include 'type' and 'required' keys.
+            c. If 'required' is false, a 'default_value' must be provided.
+            d. The 'type' must be one of the recognized types: 'string', 'integer', 'float', 'path', 'flag'.
+        3. Descriptions are used in the help message - if one is not provided, a filler description will be used.
+    */
+    private void validateDefinitionStructure() { 
+        // 1. Ensure definitions is a Map
+        if (!(definitions instanceof Map)) { 
+            throw new IllegalArgumentException("Parameter definitions must be a Map.") 
+        }else{
+            Logger.log("Definitions object is a Map.")
+        } 
 
-        // 1. Create a deep copy of definitions and initialize/override with user-provided params.
-        this.definitions.each { paramName, defs ->
-            workingDefinitions[paramName] = new HashMap(defs)
-            
-            // If 'flag' type and no default_value is set, 
-            // implicitly set it to false.
-            if (defs.type == 'flag' && !defs.containsKey('default_value')) {
-                workingDefinitions[paramName].default_value = false
+        // 2. Validate each parameter definition
+        definitions.each { paramName, paramDef -> 
+            // Required keys 
+            List<String> requiredKeys = ["type", "required"] 
+            // Allowed types
+            List<String> allowedTypes = ["string", "integer", "float", "path", "flag"]
+
+            Logger.log("Validating structure for parameter: ${paramName}")
+            // 2a. Ensure each entry is itself a Map 
+            if (!(paramDef instanceof Map)) { 
+                throw new IllegalArgumentException( "Definition for parameter '${paramName}' must be a Map, but got: ${paramDef?.getClass()?.name}" ) 
+            }else{
+                Logger.log("Definition for parameter [${paramName}] is a Map.")
             }
-        }
+            // 2b. Check that'required' and 'type' keys are present in the Definition Set
+            requiredKeys.each { key -> 
+                if (!paramDef.containsKey(key)) { 
+                    throw new IllegalArgumentException( "Parameter '${paramName}' is missing required key '${key}'." ) 
+                }
+            } 
+            Logger.log("Definition for parameter [${paramName}] contains all required keys.")
+            // 2c. Check that 'type' values are in the allowed set
+            if (!allowedTypes.contains(paramDef.type)) {
+                throw new IllegalArgumentException( "Parameter '${paramName}' has unrecognized type '${paramDef.type}'. Allowed types are: ${allowedTypes.join(', ')}." )
+            } else{
+                Logger.log("Definition for parameter [${paramName}] has valid type '${paramDef.type}'.")
+            }   
+            // 2d. If a Definition Set is marked as NOT required, ensure a default_value is provided
+            Logger.log("Definition for parameter [${paramName}] has all required definition keys.") 
+            if(!paramDef.required && !paramDef.containsKey('default_value')) { 
+                throw new IllegalArgumentException( "Parameter '${paramName}' is marked as NOT required, so a 'default_value' must be specified. If a required parameter is user-submitted, its default_value must be 'null'" ) 
+            } 
+            // 3. Ensure a description is provided; if not, add a filler description
+            if (!paramDef.containsKey('description')) { 
+                Logger.log("No description found for parameter [${paramName}]. Adding filler description.")
+                paramDef.description = "No description provided for parameter '${paramName}'."  
+            }
+        } 
+    } 
 
+    //Validates and processes user-supplied parameters against the stored definitions.
+    //userParams is a map of parameters supplied by the user (e.g., from CLI).
+    //Returns a map containing only the validated and converted parameters.
+    Map validate(Map userParams) {
+        def validatedParams = [:] // Output map to hold validated parameters
+        def workingDefinitions = [:] // the copy of definitions whose default_value may be overridden
+
+        // 1. Create a copy of definitions and override any default_value their 
+        // respective with user-provided params, if they exist.
+        this.definitions.each { paramName, definitionSet ->
+            workingDefinitions[paramName] = new HashMap(definitionSet)
+        }
+        // Specifically deal with flags here: CLI flags do no have values, their presence means 'true'  
         userParams.each { paramName, value ->
             if (workingDefinitions.containsKey(paramName)) {
                 if (workingDefinitions[paramName].type == 'flag') {
@@ -40,12 +100,12 @@ class ParamsChecker {
         }
 
         // 2. Validate and build the output map
-        workingDefinitions.each { paramName, defs ->
-            def value = defs.default_value
-            def type = defs.type
+        workingDefinitions.each { paramName, definitionSet ->
+            def value = definitionSet.default_value
+            def type = definitionSet.type
             
             // Required Check
-            if (defs.required && (value == null || (value instanceof String && value.trim().isEmpty()))) {
+            if (definitionSet.required && (value == null || (value instanceof String && value.trim().isEmpty()))) {
                 throw new RuntimeException("Parameter '${paramName}' is required but was not provided.")
             }
             
@@ -59,9 +119,9 @@ class ParamsChecker {
             }
 
             // String Validation for 'string' type with 'allow' patterns
-            if (defs.allow) {
+            if (definitionSet.allow) {
                 def valueAsString = value.toString()
-                def matched = defs.allow.any { pattern ->
+                def matched = definitionSet.allow.any { pattern ->
                     pattern == '*' || (valueAsString =~ pattern)
                 }
                 if (!matched) {
@@ -76,11 +136,11 @@ class ParamsChecker {
                 } catch (Exception e) {
                     throw new RuntimeException("Parameter '${paramName}' expected an integer but got '${value}'.")
                 }
-                if (defs.min != null && value < defs.min) {
-                    throw new RuntimeException("Value for parameter '${paramName}' must be >= ${defs.min}, but was ${value}.")
+                if (definitionSet.min != null && value < definitionSet.min) {
+                    throw new RuntimeException("Value for parameter '${paramName}' must be >= ${definitionSet.min}, but was ${value}.")
                 }
-                if (defs.max != null && value > defs.max) {
-                    throw new RuntimeException("Value for parameter '${paramName}' must be <= ${defs.max}, but was ${value}.")
+                if (definitionSet.max != null && value > definitionSet.max) {
+                    throw new RuntimeException("Value for parameter '${paramName}' must be <= ${definitionSet.max}, but was ${value}.")
                 }
             } else if (type == 'float') {
                 try {
@@ -88,11 +148,11 @@ class ParamsChecker {
                 } catch (Exception e) {
                     throw new RuntimeException("Parameter '${paramName}' expected a float but got '${value}'.")
                 }
-                if (defs.min != null && value < defs.min) {
-                    throw new RuntimeException("Value for parameter '${paramName}' must be >= ${defs.min}, but was ${value}.")
+                if (definitionSet.min != null && value < definitionSet.min) {
+                    throw new RuntimeException("Value for parameter '${paramName}' must be >= ${definitionSet.min}, but was ${value}.")
                 }
-                if (defs.max != null && value > defs.max) {
-                    throw new RuntimeException("Value for parameter '${paramName}' must be <= ${defs.max}, but was ${value}.")
+                if (definitionSet.max != null && value > definitionSet.max) {
+                    throw new RuntimeException("Value for parameter '${paramName}' must be <= ${definitionSet.max}, but was ${value}.")
                 }
             } else if (type == 'path') {
                 def file = new File(value)
@@ -134,9 +194,9 @@ class ParamsChecker {
             }
         }
         def output = new StringBuilder()
-        output.append("\n======================================================\n")
-        output.append("REQUIRED and OPTIONAL PARAMETERS\n")
-        output.append("======================================================\n")
+        output.append("\n${"=" * 120}\n")
+        output.append("\nREQUIRED and OPTIONAL PARAMETERS\n")
+        output.append("\n${"=" * 120}\n")
 
         def formatHeader = "%-20s %-10s %-10s %-15s %s\n"
         def formatLine   = "%-20s %-10s %-10s %-15s %s\n"
@@ -144,15 +204,15 @@ class ParamsChecker {
         output.append(String.format(formatHeader, "Parameter", "Type", "Required", "Default", "Description & Constraints"))
         output.append(String.format(formatHeader, "---------", "----", "--------", "-------", "-----------------------------"))
 
-        definitions.each { paramName, defs ->
-            def requiredStatus = defs.required ? "YES" : "NO"
+        definitions.each { paramName, definitionSet ->
+            def requiredStatus = definitionSet.required ? "YES" : "NO"
             def defaultValue
         
             // 1. Check if the parameter is a 'flag'
-            if (defs.type == 'flag') {
+            if (definitionSet.type == 'flag') {
                 // A flag's default is typically 'false' if not specified, or 'true'/'false' if specified.
                 // Using getOrDefault to safely check for 'default_value', defaulting to null if missing.
-                def definedDefault = defs.getOrDefault('default_value', null) 
+                def definedDefault = definitionSet.getOrDefault('default_value', null) 
                 
                 // If a default is explicitly provided, use it. Otherwise, assume 'false'.
                 defaultValue = definedDefault == null ? 'false' : definedDefault.toString()
@@ -164,7 +224,7 @@ class ParamsChecker {
                 // Using the toString() on the result (which might be null) is often where the `[:]` comes from.
                 
                 // We'll safely get the value, defaulting to null if not present.
-                def rawDefault = defs.getOrDefault('default_value', null)
+                def rawDefault = definitionSet.getOrDefault('default_value', null)
                 
                 // If rawDefault is null, set the display value to "N/A".
                 // Otherwise, convert it to a string.
@@ -172,30 +232,30 @@ class ParamsChecker {
             }
 
             def constraints = ""
-            if (defs.type in ['integer', 'float']) {
-                if (defs.min != null || defs.max != null) {
-                    def min = defs.min != null ? defs.min : "-inf"
-                    def max = defs.max != null ? defs.max : "+inf"
+            if (definitionSet.type in ['integer', 'float']) {
+                if (definitionSet.min != null || definitionSet.max != null) {
+                    def min = definitionSet.min != null ? definitionSet.min : "-inf"
+                    def max = definitionSet.max != null ? definitionSet.max : "+inf"
                     constraints += " [Range: $min to $max]"
                 }
             }
-            if (defs.type == 'string' && defs.allow) {
-                constraints += " [Allowed: ${defs.allow.join(', ')}]"
+            if (definitionSet.type == 'string' && definitionSet.allow) {
+                constraints += " [Allowed: ${definitionSet.allow.join(', ')}]"
             }
             
-            def fullDescription = "${defs.description}${constraints}"
+            def fullDescription = "${definitionSet.description}${constraints}"
             
             output.append(String.format(
                 formatLine,
                 paramName,
-                defs.type,
+                definitionSet.type,
                 requiredStatus,
                 defaultValue,
                 fullDescription
             ))
         }
 
-        output.append("\n======================================================\n")
+        output.append("\n${"=" * 120}\n")
         
         println output.toString()
     }
