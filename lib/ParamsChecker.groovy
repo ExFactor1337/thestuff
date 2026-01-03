@@ -126,15 +126,25 @@ class ParamsChecker {
             if (value instanceof String) {
                 value = value.trim()
             }
+            /*
+            // There are 2 reasons why a user would input a string
+            1. They want the string to be passed as-is into the pipeline (e.g., a sample name)
+            2. They want the string to represent a specific selection from a set of allowed patterns
+            In the former case, we do not need to monitor the user's input. 
+            In the latter case, we need to ensure the user's input matches one of the allowed patterns. 
+
+            The 'allow' key contains a list of allowed patterns. 
+            If the user's input does not match any of these patterns, we throw an error.
+            */
 
             // String Validation for 'string' type with 'allow' patterns
             if (definitionSet.allow) {
-                def valueAsString = value.toString()
+                def strValue = value.toString()
                 def matched = definitionSet.allow.any { pattern ->
-                    pattern == '*' || (valueAsString =~ pattern)
+                    strValue == pattern
                 }
                 if (!matched) {
-                    throw new RuntimeException("Value for parameter '${paramName}' does not match allowed patterns: '${valueAsString}'.")
+                    throw new RuntimeException("Error for value of parameter '${paramName}'. '${strValue}' does not match allowed patterns: '${definitionSet.allow}'.")
                 }
             }
 
