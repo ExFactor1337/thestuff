@@ -1,62 +1,94 @@
 import ParamsChecker
 import Auditor
-import groovy.util.ConfigSlurper
 
-Logger.enabled = false // Disable logging for cleaner output
 
-// --- 1. Load Parameter Definitions ---
-def configFile = new File("configs/base.config")
-def config = new ConfigSlurper().parse(configFile.toURL())
-def definitions = config.params.definitions
+Logger.enabled = true // Disable logging for cleaner output
 
-// --- 2. Convert CLI Arguments to a Map ---
+// --- 1. Convert CLI Arguments to a Map ---
+/*
+    The following parser supports 3 styles of CLI arguments:
+    1. --param=value
+    2. --param value
+    3. --flag (boolean flag, set to true if present)
+*/
 def userParams = [:]
-def lastKey = null
+def nextflowParams = [:]
+def lastKeyUser = null
+def lastKeyNextflow = null
+Logger.log( "Parsing command-line arguments...${args}" )
+// Check for incorrectly formatted CLI args
+args.findAll { arg -> 
+    arg.startsWith('=') | arg.endsWith('=')
+}.each { badArg ->
+    throw new IllegalArgumentException("Invalid argument format detected: '${badArg}'. Please use '--param=value' or '--param value' formats.")
+}   
+
 args.each { arg ->
+    Logger.log("Processing arg: ${arg}")
+    // if arg starts with '--', it's a user param
+    // split on '=' if present
     if (arg.startsWith('--')) {
-        def parts = arg.substring(2).split('=', 2)
-        def key = parts[0]
-        if (parts.size() > 1) {
+        argname = arg.substring(2)
+        if (arg.contains('=')) {
+            def parts = argname.split('=', 2)
+            def key = parts[0]
             userParams[key] = parts[1]
-            lastKey = null
         } else {
-            userParams[key] = true
-            lastKey = key
+            // It's either a flag or the key for the next value
+            lastKeyUser = argname  
+            userParams[lastKeyUser] = true // Default to true for flags
         }
-    } else if (lastKey != null) {
-        userParams[lastKey] = arg
-        lastKey = null
+    } else if (arg.startsWith('-')) {
+        if (arg.contains('=')){
+            throw new IllegalArgumentException("Invalid argument format detected: '${arg}'. Nextflow parameters should not use '='. Please use '-param value' format.")
+        }
+        // it's a nextflow param (single dash)
+        def key = arg.substring(1)
+        nextflowParams[key] = true // Default to true for flags
+        lastKeyNextflow = key  
+    } else if (lastKeyNextflow != null) {
+        // It's a value for the last key
+        nextflowParams[lastKeyNextflow] = arg
+        lastKeyNextflow = null  
+    } else if (lastKeyUser != null) {
+        // It's a value for the last key
+        userParams[lastKeyUser] = arg
+        lastKeyUser = null  
+    } else {
+        throw new IllegalArgumentException("Value '${arg}' provided without a corresponding parameter name.")
     }
 }
+Logger.log("User Parameters Parsed: ${userParams}")
+Logger.log("Nextflow Parameters Parsed: ${nextflowParams}")
 
-// --- 3. Define new ParamsChecker object with param definitions ---
+
+// --- 2. Define new ParamsChecker object with param definitions ---
 def banner_art = "assets/banner.txt" // Replace if path changes
-def checker = new ParamsChecker(definitions)
+def checker = new ParamsChecker("configs/base.config")
 if (userParams.containsKey('help')) {
     // If the user provided --help, print the guide and exit cleanly.
     checker.printHelp(banner_art) 
     System.exit(0)
 }
 
-// --- 4. Validate CLI Parameters against Parameter Definitions ---
+// --- 3. Validate CLI Parameters against Parameter Definitions ---
 def vparams
-
 try {
     // If no help flag, proceed with validation of all parameters
     vparams = checker.validate(userParams)
 } catch (Exception e) {
     // Print the error, then the help message, then exit with failure code.
-    println "\n********************************************************"
-    println "ERROR: Parameter validation failed."
-    println "${e.getMessage()}"
-    println "********************************************************"
+    Logger.log("\n********************************************************")
+    Logger.log("ERROR: Parameter validation failed.")
+    Logger.log("${e.getMessage()}")
+    Logger.log("********************************************************")
     
     // Print the help message for context
     checker.printHelp(banner_art)     
     System.exit(1)
 }
 
-// --- 5. Build Nextflow Command ---
+// --- 4. Build Nextflow Command ---
 def nfCmd = "nextflow run thestuff.nf"
 
 // Use the validated parameters (vparams) to build the command string.
@@ -70,10 +102,21 @@ vparams.each { k, v ->
     }
 }
 
-println "Running command:\n$nfCmd"
+// Append any Nextflow-specific parameters
+nextflowParams.each { k, v -> 
+    if (v instanceof Boolean) {
+        if (v) {
+            nfCmd += " -${k}"
+        }
+    } else {
+        nfCmd += " -${k} ${v}" 
+    }
+}   
+
+Logger.log( "Running command:\n$nfCmd" )
 
 
-// --- 6. Execute the Nextflow Command ---
+// --- 5. Execute the Nextflow Command ---
 def proc = nfCmd.execute()
 
 proc.in.eachLine { println it }
@@ -83,5 +126,5 @@ if (proc.exitValue() != 0) {
     println "Nextflow run failed with exit code ${proc.exitValue()}"
     System.exit(proc.exitValue())
 } else {
-    println "Nextflow run completed successfully."
+    println "Nextflow run completed successfully." 
 }

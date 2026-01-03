@@ -1,6 +1,6 @@
 import Auditor
 import java.nio.file.Files
-
+import groovy.util.ConfigSlurper
 
 class Logger { 
     static boolean enabled = true 
@@ -14,8 +14,18 @@ class ParamsChecker {
     
     //Constructs a ParamsChecker with the parameter definitions.
     //@param definitions A map defining the expected parameters and their constraints.
-    ParamsChecker(Map definitions) {
-        this.definitions = definitions
+    ParamsChecker(String configFilePath) {
+        Logger.log("Loading parameter definitions from config file: ${configFilePath}")
+        def configFile = new File(configFilePath)
+        // Make sure the config file exists
+        if (!configFile.exists()) {
+            throw new IllegalArgumentException("Configuration file not found at path: ${configFilePath}")
+        }
+        def config = new ConfigSlurper().parse(configFile.toURL())
+        if (!config.containsKey('params') || !config.params.containsKey('definitions')) {
+            throw new IllegalArgumentException("Configuration file is missing 'params.definitions'. Please check ${configFile.path}.")
+        }
+        this.definitions = config.params.definitions
         validateDefinitionStructure()
     }
 
@@ -56,7 +66,7 @@ class ParamsChecker {
                     throw new IllegalArgumentException( "Parameter '${paramName}' is missing required key '${key}'." ) 
                 }
             } 
-            Logger.log("Definition for parameter [${paramName}] contains all required keys.")
+            Logger.log("Definition for parameter [${paramName}] contains all required DefinitionSet keys.")
             // 2c. Check that 'type' values are in the allowed set
             if (!allowedTypes.contains(paramDef.type)) {
                 throw new IllegalArgumentException( "Parameter '${paramName}' has unrecognized type '${paramDef.type}'. Allowed types are: ${allowedTypes.join(', ')}." )
@@ -64,7 +74,6 @@ class ParamsChecker {
                 Logger.log("Definition for parameter [${paramName}] has valid type '${paramDef.type}'.")
             }   
             // 2d. If a Definition Set is marked as NOT required, ensure a default_value is provided
-            Logger.log("Definition for parameter [${paramName}] has all required definition keys.") 
             if(!paramDef.required && !paramDef.containsKey('default_value')) { 
                 throw new IllegalArgumentException( "Parameter '${paramName}' is marked as NOT required, so a 'default_value' must be specified. If a required parameter is user-submitted, its default_value must be 'null'" ) 
             } 
