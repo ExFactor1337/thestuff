@@ -1,4 +1,5 @@
 import Auditor
+import Utils
 import java.nio.file.Files
 import groovy.util.ConfigSlurper
 
@@ -97,14 +98,15 @@ class ParamsChecker {
         this.definitions.each { paramName, definitionSet ->
             workingDefinitions[paramName] = new HashMap(definitionSet)
         }
-        // Specifically deal with flags here: CLI flags do no have values, their presence means 'true'  
+        // Specifically deal with flags here: CLI flags in the User Submitted Params do no have values, their presence means 'true'  
+        // We assume that flag params will always be optionally required, defaulting to false in the definitionSet.
         userParams.each { paramName, value ->
-            if (workingDefinitions.containsKey(paramName)) {
-                if (workingDefinitions[paramName].type == 'flag') {
+            if (workingDefinitions.containsKey(paramName) && workingDefinitions[paramName].type == 'flag') {
                     workingDefinitions[paramName].default_value = true
-                } else {
-                    workingDefinitions[paramName].default_value = value
-                }
+            } else if (workingDefinitions.containsKey(paramName)) {
+                workingDefinitions[paramName].default_value = value
+            } else {
+                throw new RuntimeException("Unrecognized parameter '${paramName}' provided by user.")
             }
         }
 
@@ -114,10 +116,10 @@ class ParamsChecker {
             def type = definitionSet.type
             
             // Required Check
-            if (definitionSet.required && (value == null || (value instanceof String && value.trim().isEmpty()))) {
+            if (definitionSet.containsKey('required') && (value == null || (value instanceof String && value.trim().isEmpty()))) {
                 throw new RuntimeException("Parameter '${paramName}' is required but was not provided.")
             }
-            
+            // Skip null values - they can be in the definitionSet, but if not overridden by user, we do not include them in the output map.
             if (value == null) {
                 return
             }
@@ -136,29 +138,17 @@ class ParamsChecker {
             The 'allow' key contains a list of allowed patterns. 
             If the user's input does not match any of these patterns, we throw an error.
             */
-
-            // String Validation for 'string' type with 'allow' patterns
-            if (definitionSet.allow) {
-                def strValue = value.toString()
-                def matched = definitionSet.allow.any { pattern ->
-                    strValue == pattern
-                }
-                if (!matched) {
-                    throw new RuntimeException("Error for value of parameter '${paramName}'. '${strValue}' does not match allowed patterns: '${definitionSet.allow}'.")
-                }
-            }
-
-            // Type Conversion and Range Checks
+            // Numerical Type Conversion and Range Checks
             if (type == 'integer') {
                 try {
                     value = value.toString() as int
                 } catch (Exception e) {
                     throw new RuntimeException("Parameter '${paramName}' expected an integer but got '${value}'.")
                 }
-                if (definitionSet.min != null && value < definitionSet.min) {
+                if (definitionSet.containsKey('min') && value < definitionSet.min) {
                     throw new RuntimeException("Value for parameter '${paramName}' must be >= ${definitionSet.min}, but was ${value}.")
                 }
-                if (definitionSet.max != null && value > definitionSet.max) {
+                if (definitionSet.containsKey('max') && value > definitionSet.max) {
                     throw new RuntimeException("Value for parameter '${paramName}' must be <= ${definitionSet.max}, but was ${value}.")
                 }
             } else if (type == 'float') {
@@ -167,10 +157,10 @@ class ParamsChecker {
                 } catch (Exception e) {
                     throw new RuntimeException("Parameter '${paramName}' expected a float but got '${value}'.")
                 }
-                if (definitionSet.min != null && value < definitionSet.min) {
+                if (definitionSet.containsKey('min') && value < definitionSet.min) {
                     throw new RuntimeException("Value for parameter '${paramName}' must be >= ${definitionSet.min}, but was ${value}.")
                 }
-                if (definitionSet.max != null && value > definitionSet.max) {
+                if (definitionSet.containsKey('max') && value > definitionSet.max) {
                     throw new RuntimeException("Value for parameter '${paramName}' must be <= ${definitionSet.max}, but was ${value}.")
                 }
             } else if (type == 'path') {
@@ -180,13 +170,25 @@ class ParamsChecker {
                 }
                 value = file.getCanonicalPath()
             } else if (type == 'flag') {
+                // In the UserParams stage, all flags are set to true if present, false if absent, as set in the definitionSet.
                 if (!(value instanceof Boolean)) {
-                    def lowerValue = value.toString().toLowerCase()
-                    value = (lowerValue in ['true', 't', 'yes', 'y', '1'])
+                    throw new RuntimeException("Parameter '${paramName}' is a flag and must be a boolean value (true/false). Got '${value}'.")
                 }
             } else if (type == 'string') {
                 if (!(value instanceof String)) {
-                    value = value.toString()
+                    value = value.toString().trim()
+                    // String Validation for 'string' type with 'allow' patterns
+                    if (definitionSet.containsKey('allow')) {
+                        if (!(definitionSet.allow instanceof List)) {
+                            throw new RuntimeException("Error in parameter definition for '${paramName}': 'allow' must be a list of allowed values. e.g. ['value1', 'value2']")
+                        }
+                        def matched = definitionSet.allow.any { pattern ->
+                            value == pattern
+                        }
+                        if (!matched) {
+                            throw new RuntimeException("Error for value of parameter '${paramName}'. '${strValue}' does not match allowed patterns: '${definitionSet.allow}'.")
+                        }
+                    }
                 }
             } else {
                 // Unknown type
@@ -194,7 +196,6 @@ class ParamsChecker {
                 this.printHelp()                
                 throw new RuntimeException("\nFATAL CONFIGURATION ERROR: Unrecognized type '${type}' found for parameter '${paramName}'. Please correct your parameter definitions.")
             }
-            
             validatedParams[paramName] = value
         }
 
@@ -247,7 +248,7 @@ class ParamsChecker {
                 
                 // If rawDefault is null, set the display value to "N/A".
                 // Otherwise, convert it to a string.
-                defaultValue = rawDefault == null ? "N/A" : rawDefault.toString()
+                defaultValue = rawDefault == null ? "NULL" : rawDefault.toString()
             }
 
             def constraints = ""
