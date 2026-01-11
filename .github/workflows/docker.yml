@@ -48,7 +48,7 @@ jobs:
       - name: Build and push Docker image for ${{ matrix.dockerfile_name }}
         uses: docker/build-push-action@v5
         with:
-          context: ./containers/
+          context: .
           push: true
           # matrix runs parallelize docker image builds - very cool
           file: ./containers/${{ matrix.dockerfile_name }}
