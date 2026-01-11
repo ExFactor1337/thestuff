@@ -24,6 +24,7 @@ jobs:
         dockerfile_name:
           - 'runner'
           - 'ubuntu-r'
+          - 'ubuntu-python'
     
     steps:
       - name: Checkout repository
