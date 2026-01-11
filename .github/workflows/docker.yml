@@ -23,6 +23,7 @@ jobs:
         # The 'runner' dockerfile should always be built
         dockerfile_name:
           - 'runner'
+          - 'ubuntu-r'
     
     steps:
       - name: Checkout repository
